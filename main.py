@@ -1,13 +1,16 @@
 import speechrecognition as spr
 import aiSetup as s
 import ssl 
-def main():
+import asyncio
+
+async def main():
     print(ssl.OPENSSL_VERSION)
-    spr.listener()
+    await spr.listener()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
+    
 
 
 

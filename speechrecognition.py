@@ -1,6 +1,6 @@
 import speech_recognition as sr
 from sentence_transformers import SentenceTransformer, util
-from answers import whatsTheTime
+from answers import whatsTheTime, whatsTheWeather
 
 recognizer = sr.Recognizer()
 
@@ -34,29 +34,57 @@ timePhrases = {
     ]
 }
 
-all_phrases = []
-phrase_languages = []
+timeAll_phrases = []
+timePhrase_languages = []
 
 for lang, phrases in timePhrases.items():
     for phrase in phrases:
-        all_phrases.append(phrase)
-        phrase_languages.append(lang)
+        timeAll_phrases.append(phrase)
+        timePhrase_languages.append(lang)
 
-timeEmbeddings = model.encode(all_phrases, convert_to_tensor=True)
+timeEmbeddings = model.encode(timeAll_phrases, convert_to_tensor=True)
 
-def isTimeCommand(userInput):
+weatherPhrases = {
+    "en": [
+        "what's the weather like",
+        "how's the weather",
+        "how's the weather outside"
+    ],
+    "sk": [
+        "aké je počasie",
+        "ako je vonku",
+        "aké je vonku počasie"
+    ]
+}
+
+weatherAll_phrases = []
+weatherPhrase_languages = []
+
+for lang, phrases in weatherPhrases.items():
+    for phrase in phrases:
+        weatherAll_phrases.append(phrase)
+        weatherPhrase_languages.append(lang)
+
+weatherEmbeddings = model.encode(weatherAll_phrases, convert_to_tensor=True)
+
+def isXCommand(userInput, embedding, langs):
     userEmbedding = model.encode(userInput, convert_to_tensor=True)
-    similarityScores = util.cos_sim(userEmbedding, timeEmbeddings)
+    similarityScores = util.cos_sim(userEmbedding, embedding)
     maxScore, bestIndex = similarityScores[0].max(dim=0)
     if maxScore.item() > 0.6:
-        detected_language = phrase_languages[bestIndex.item()]
+        detected_language = langs[bestIndex.item()]
         return True, detected_language
     else:
         return False, None
-def listener():
+
+async def listener():
     while True:
         print("pocuvam ta")
         userText = speechRecognition()
-        timeCommand, lang = isTimeCommand(userText)
+        timeCommand, lang = isXCommand(userText, timeEmbeddings, timePhrase_languages)
         if timeCommand:
            print(whatsTheTime(lang))
+        else:
+            weatherCommand, lang = isXCommand(userText, weatherEmbeddings, weatherPhrase_languages)
+            if weatherCommand:
+                print(await whatsTheWeather(lang))

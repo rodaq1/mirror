@@ -65,16 +65,22 @@ def getCurrentWeather(address):
     except requests.exceptions.RequestException as e:
         print(f"Error fetching data: {e}")
         return None
-    parsedResult = result.json()
-    weatherInfo = {
-        "temp": parsedResult["temp_c"],
-        "feelsliketemp": parsedResult["feelslike_c"],
-        "condition": parsedResult["condition"]["text"],
-        "wind": parsedResult["wind_kph"],
-        "humidity": parsedResult["humidity"],
-    }
 
-    return weatherInfo
+    parsedResult = result.json()
+
+    try:
+        current = parsedResult["current"]
+        weatherInfo = {
+            "temp": current["temp_c"],
+            "feelsliketemp": current["feelslike_c"],
+            "condition": current["condition"]["text"],
+            "wind": current["wind_kph"],
+            "humidity": current["humidity"],
+        }
+        return weatherInfo
+    except KeyError as e:
+        print(f"Missing key in weather data: {e}")
+        return None
 
 def getForecast(address, days):
     location = getLatLng(address)
