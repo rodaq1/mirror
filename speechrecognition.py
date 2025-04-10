@@ -1,6 +1,7 @@
 import speech_recognition as sr
 from sentence_transformers import SentenceTransformer, util
-from answers import whatsTheTime, whatsTheWeather
+from answers import whatsTheTime, whatsTheWeather, whatsHourlyForecast
+from voice import speak
 
 recognizer = sr.Recognizer()
 
@@ -20,7 +21,6 @@ def speechRecognition():
         return None
 
 
-#listener pre commandy
 model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
 timePhrases = {
     "en": [
@@ -45,29 +45,91 @@ for lang, phrases in timePhrases.items():
 timeEmbeddings = model.encode(timeAll_phrases, convert_to_tensor=True)
 
 weatherPhrases = {
-    "en": [
-        "what's the weather like",
-        "how's the weather",
-        "how's the weather outside"
-    ],
-    "sk": [
-        "aké je počasie",
-        "ako je vonku",
-        "aké je vonku počasie"
-    ]
+    "current_weather": {
+        "en": [
+            "what's the weather like",
+            "how's the weather",
+            "what's the weather outside"
+        ],
+        "sk": [
+            "aké je počasie",
+            "ako je vonku",
+            "aké je vonku počasie"
+        ]
+    },
+    "hourly_forecast": {
+        "en": [
+            "what's the weather this evening",
+            "what will the weather be like tonight",
+            "forecast for later today"
+        ],
+        "sk": [
+            "aké bude počasie večer",
+            "bude pršať dnes večer",
+            "predpoveď na dnešný večer"
+        ]
+    },
+    "daily_forecast": {
+        "en": [
+            "what's the forecast for tomorrow",
+            "weather for the weekend",
+            "will it rain on friday"
+        ],
+        "sk": [
+            "aká je predpoveď na zajtra",
+            "aké bude počasie cez víkend",
+            "bude pršať v piatok"
+        ]
+    }
 }
 
-weatherAll_phrases = []
-weatherPhrase_languages = []
+wphraseEmbeddings = []
+wphraseLabels = []
+wphraseLanguages = []
 
-for lang, phrases in weatherPhrases.items():
+for intent, lang_dict in weatherPhrases.items():
+    for lang, phrases in lang_dict.items():
+        for phrase in phrases:
+            wphraseEmbeddings.append(phrase)
+            wphraseLabels.append(intent)
+            wphraseLanguages.append(lang)
+
+weatherEmbeddings = model.encode(wphraseEmbeddings, convert_to_tensor=True)
+
+def detectIntent(userInput, embedding, langs, threshold=0.6, labels=None):
+    userEmbedding = model.encode(userInput, convert_to_tensor=True)
+    similarityScores = util.cos_sim(userEmbedding, embedding)
+    maxScore, bestIndex = similarityScores[0].max(dim=0)
+
+    matched_label = labels[bestIndex.item()] if labels else None
+
+    if maxScore.item() > threshold:
+        return True, matched_label, langs[bestIndex.item()]
+    else:
+        return False, None, None
+
+wakeWords = {
+    "en": [
+            "siri", 
+            "hey siri"
+        ],
+    "sk": [
+            "alexa",
+            "hey alexa"
+        ] 
+    }
+
+allWakeWords = []
+langWakeWords = []
+
+for lang, phrases in wakeWords.items():
     for phrase in phrases:
-        weatherAll_phrases.append(phrase)
-        weatherPhrase_languages.append(lang)
+        allWakeWords.append(phrase)
+        langWakeWords.append(lang)
+        
+wakingEmbeddings = model.encode(allWakeWords, convert_to_tensor=True)
 
-weatherEmbeddings = model.encode(weatherAll_phrases, convert_to_tensor=True)
-
-def isXCommand(userInput, embedding, langs):
+def awakening(userInput, embedding, langs):
     userEmbedding = model.encode(userInput, convert_to_tensor=True)
     similarityScores = util.cos_sim(userEmbedding, embedding)
     maxScore, bestIndex = similarityScores[0].max(dim=0)
@@ -77,14 +139,27 @@ def isXCommand(userInput, embedding, langs):
     else:
         return False, None
 
+def waitForWaking():
+    while True:
+        userInput = speechRecognition()
+        awakened, lang = awakening(userInput, wakingEmbeddings, langWakeWords)
+        if awakened:
+            return lang
+
 async def listener():
     while True:
-        print("pocuvam ta")
+        awakenedLang = waitForWaking()
+        if awakenedLang == "en":
+            speak("What's up?", "en")
+        elif awakenedLang == "sk":
+            speak("Počúvam", "sk")
         userText = speechRecognition()
-        timeCommand, lang = isXCommand(userText, timeEmbeddings, timePhrase_languages)
+        timeCommand, lang = detectIntent(userText, timeEmbeddings, timePhrase_languages)
         if timeCommand:
-           print(whatsTheTime(lang))
+           speak(whatsTheTime(lang), lang)
         else:
-            weatherCommand, lang = isXCommand(userText, weatherEmbeddings, weatherPhrase_languages)
-            if weatherCommand:
-                print(await whatsTheWeather(lang))
+            weatherCommand, intent, lang = detectIntent(userText, weatherEmbeddings, wphraseLanguages, labels=wphraseLabels)
+            if weatherCommand & intent=="current_weather":
+                speak(await whatsTheWeather(lang), lang)
+            elif weatherCommand & intent=="hourly_forecast":
+                speak(await whatsHourlyForecast(lang), lang)
