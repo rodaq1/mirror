@@ -70,3 +70,34 @@ async def whatsHourlyForecast(lang, location = "KysuckeNoveMesto", desiredHour=1
         answer = answer.rstrip("; ")
 
     return answer
+
+async def whatsDailyForecast(lang, days, location = "KysuckeNoveMesto"):
+    forecast = g.getForecast(location, days)
+    dailyForecast = g.getDailyForecast(forecast)
+
+    answer = ""
+
+    if lang == "en":
+        answer = "Here's the daily weather forecast:\n"
+        for day in dailyForecast:
+            answer += (
+                f"{day['date']}: {day['condition']}, "
+                f"{day['min_temp']}°C to {day['max_temp']}°C, "
+                f"sunrise at {day['sunrise']}, sunset at {day['sunset']}.\n"
+            )
+
+    elif lang == "sk":
+        answer = "Tu je denná predpoveď počasia:\n"
+        for day in dailyForecast:
+            condition = translator.translate(day['condition'], dest='sk').text
+
+            if condition.endswith("ý"):
+                condition = condition[:-1] + "é"
+
+            answer += (
+                f"{day['date']}: {condition}, "
+                f"od {day['min_temp']}°C do {day['max_temp']}°C, "
+                f"východ slnka o {day['sunrise']}, západ slnka o {day['sunset']}.\n"
+            )
+
+    return answer

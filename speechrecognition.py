@@ -1,18 +1,21 @@
 import speech_recognition as sr
 from sentence_transformers import SentenceTransformer, util
-from answers import whatsTheTime, whatsTheWeather, whatsHourlyForecast
+import answers as an
 from voice import speak
+import re
+from datetime import datetime, timedelta
 
 recognizer = sr.Recognizer()
 
 def speechRecognition():
     with sr.Microphone() as source:
-        print(" ovor...")
         recognizer.energy_threshold=1500
         recognizer.adjust_for_ambient_noise(source)  
         audio = recognizer.listen(source)
+        print("test1")
     try:
         text = recognizer.recognize_google(audio, language="sk-SK")
+        print("test 2")
         text = text.strip().lower()
         print(text)
         return text
@@ -129,7 +132,44 @@ for lang, phrases in wakeWords.items():
         
 wakingEmbeddings = model.encode(allWakeWords, convert_to_tensor=True)
 
+
+def extractForecastDays(text, lang="en"):
+    number_match = re.search(r"\b(\d+)\s*(day|days|dni)?", text)
+    if number_match:
+        return min(int(number_match.group(1)), 10) 
+
+    today = datetime.now()
+    lower = text.lower()
+
+    if lang == "en":
+        if "today" in lower:
+            return 1
+        elif "tomorrow" in lower:
+            return 2
+        elif "weekend" in lower:
+            weekday = today.weekday()
+            days_until_saturday = (5 - weekday) % 7
+            return days_until_saturday + 2
+        elif "next week" in lower:
+            return 7
+    elif lang == "sk":
+        if "dnes" in lower:
+            return 1
+        elif "zajtra" in lower:
+            return 2
+        elif "víkend" in lower:
+            weekday = today.weekday()
+            days_until_saturday = (5 - weekday) % 7
+            return days_until_saturday + 2
+        elif "budúci týždeň" in lower or "buduci tyzden" in lower:
+            return 7
+
+    return 3
+
 def awakening(userInput, embedding, langs):
+    if not userInput:
+        print("No input. Waiting.")
+        return False, None
     userEmbedding = model.encode(userInput, convert_to_tensor=True)
     similarityScores = util.cos_sim(userEmbedding, embedding)
     maxScore, bestIndex = similarityScores[0].max(dim=0)
@@ -142,24 +182,61 @@ def awakening(userInput, embedding, langs):
 def waitForWaking():
     while True:
         userInput = speechRecognition()
+
+        if not userInput:
+            print("Continuing listening.")
+            continue
         awakened, lang = awakening(userInput, wakingEmbeddings, langWakeWords)
+
         if awakened:
-            return lang
+            return lang 
+
+import time
 
 async def listener():
     while True:
         awakenedLang = waitForWaking()
+        
         if awakenedLang == "en":
             speak("What's up?", "en")
         elif awakenedLang == "sk":
             speak("Počúvam", "sk")
-        userText = speechRecognition()
-        timeCommand, lang = detectIntent(userText, timeEmbeddings, timePhrase_languages)
-        if timeCommand:
-           speak(whatsTheTime(lang), lang)
-        else:
+
+        lastCommandTime = time.time()
+        timeoutDuration = 30
+
+        while True:
+            if time.time() - lastCommandTime > timeoutDuration:
+                speak("Going to sleep due to inactivity." if awakenedLang == "en" else "Prechádzam do režimu spánku pre nečinnosť.", awakenedLang)
+                break
+
+            userText = speechRecognition()
+            if not userText:
+                continue
+
+            lastCommandTime = time.time()
+
+            if awakenedLang == "en" and "go to sleep" in userText.lower() or "goodbye" in userText.lower():
+                speak("Going to sleep.", "en")
+                break
+            elif awakenedLang == "sk" and ("choď spať" in userText.lower() or "dovidenia" in userText.lower()):
+                speak("Idem spať.", "sk")
+                break
+
+            timeCommand, intent, lang = detectIntent(userText, timeEmbeddings, timePhrase_languages)
+            if timeCommand:
+                speak(an.whatsTheTime(lang), lang)
+                continue
+
             weatherCommand, intent, lang = detectIntent(userText, weatherEmbeddings, wphraseLanguages, labels=wphraseLabels)
-            if weatherCommand & intent=="current_weather":
-                speak(await whatsTheWeather(lang), lang)
-            elif weatherCommand & intent=="hourly_forecast":
-                speak(await whatsHourlyForecast(lang), lang)
+            if weatherCommand:
+                if intent == "current_weather":
+                    speak(await an.whatsTheWeather(lang), lang)
+                elif intent == "hourly_forecast":
+                    speak(await an.whatsHourlyForecast(lang), lang)
+                elif intent == "daily_forecast":
+                    days = extractForecastDays(userText, lang)
+                    speak(await an.whatsDailyForecast(lang, days), lang)
+                continue
+
+                
