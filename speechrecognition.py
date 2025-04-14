@@ -4,6 +4,7 @@ import answers as an
 from voice import speak
 import re
 from datetime import datetime, timedelta
+import spotify as spot
 
 recognizer = sr.Recognizer()
 
@@ -12,12 +13,9 @@ def speechRecognition():
         recognizer.energy_threshold=1500
         recognizer.adjust_for_ambient_noise(source)  
         audio = recognizer.listen(source)
-        print("test1")
     try:
         text = recognizer.recognize_google(audio, language="sk-SK")
-        print("test 2")
         text = text.strip().lower()
-        print(text)
         return text
     except Exception as e:
         print(f"chybicka {e}")
@@ -98,6 +96,46 @@ for intent, lang_dict in weatherPhrases.items():
             wphraseLanguages.append(lang)
 
 weatherEmbeddings = model.encode(wphraseEmbeddings, convert_to_tensor=True)
+
+musicPhrases = {
+    "play_song": {
+        "en": [
+            "play", "play song", "play music"
+        ],
+        "sk": [
+            "pusti", "prehraj", "zapni hudbu", "pusti pesničku"
+        ]
+    },
+    "pause": {
+        "en":[
+            "pause the music", "stop the music"
+        ],
+        "sk": [
+            "zastav hudbu", "pauzni hudbu"
+        ]
+    },
+    "start": {
+        "en": [
+            "resume", "continue the music"
+        ],
+        "sk": [
+            "pokračuj", "pusti hudbu"
+        ]
+    }
+}
+
+musicEmbeddings = []
+musicLabels = []
+musicLanguages = []
+
+for intent, lang_dict in musicPhrases.items():
+    for lang, phrases in lang_dict.items():
+        for phrase in phrases:
+            musicEmbeddings.append(phrase)
+            musicLabels.append(intent)
+            musicLanguages.append(lang)
+
+musicEmbeddings_ = model.encode(musicEmbeddings, convert_to_tensor=True)
 
 def detectIntent(userInput, embedding, langs, threshold=0.6, labels=None):
     userEmbedding = model.encode(userInput, convert_to_tensor=True)
@@ -238,5 +276,13 @@ async def listener():
                     days = extractForecastDays(userText, lang)
                     speak(await an.whatsDailyForecast(lang, days), lang)
                 continue
+
+            musicCommand, intent, lang = detectIntent(userText, musicEmbeddings_, musicLanguages, labels=musicLabels)
+            if musicCommand:
+                if intent == "play_song":
+                    song = userText.replace("play", "").strip()
+                    speak(an.nowPlaying(song, lang), lang)
+                    spot.playSong(song)
+
 
                 

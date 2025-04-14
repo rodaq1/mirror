@@ -101,3 +101,10 @@ async def whatsDailyForecast(lang, days, location = "KysuckeNoveMesto"):
             )
 
     return answer
+
+def nowPlaying(song, lang):
+    if lang == "en":
+        answer = f"Now playing {song} on spotify"
+    elif lang == "sk":
+        answer = f"Púšťam {song} cez spotify"
+    return answer
