@@ -108,3 +108,19 @@ def nowPlaying(song, lang):
     elif lang == "sk":
         answer = f"Púšťam {song} cez spotify"
     return answer
+
+def playPause(val, lang, intent):
+    match intent:
+        case "s":
+            if val == 1 and lang == "en":
+                answer = "Song stopped."
+            elif val == 1 and lang == "sk":
+                answer = "Pesnička zastavená."
+        case "p":
+            if val == 1 and lang == "en":
+                answer = "Playing song."
+            elif val == 1 and lang == "sk":
+                answer = "Púšťam pesničku."
+    return answer
+
+    

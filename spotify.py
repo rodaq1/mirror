@@ -13,9 +13,20 @@ def playSong(song):
     track_uri = results['tracks']['items'][0]['uri']
     sp.start_playback(uris=[track_uri])
 
-sp.pause_playback()
+def pauseSong():
+    try:
+        sp.pause_playback()
+        return 1
+    except:
+        return 0
+    
+def playSong():
+    try:
+        sp.start_playback()
+        return 1
+    except:
+        return 0
 
-sp.start_playback()
-
-current = sp.current_playback()
-print(current['item']['name'])
+def getCurrentSong():
+    current = sp.current_playback()
+    return current
