@@ -7,3 +7,6 @@ sentence_transformers==4.0.2
 speechrecognition==3.14.2
 spotipy==2.25.1
 urllib3==2.4.0
+
+
+
