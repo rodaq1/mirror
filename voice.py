@@ -1,7 +1,7 @@
 import azure.cognitiveservices.speech as speechsdk
 
 def speak(text, lang):
-    speechKey = "CJxaYG8V2ZgZhSpavLOrhkADga84gwqJez7JvRxZ5oXmkak8PZY8JQQJ99BDAC5RqLJXJ3w3AAAYACOGjzyz"
+    speechKey = "1kYtz6KJkc1hZeTSYVf2SgS1S7E6dH12EMu2AdcEJsxqAu1VscdvJQQJ99BEAC5RqLJXJ3w3AAAYACOG5KTU"
     serviceRegion = "westeurope"
 
     speechConfig = speechsdk.SpeechConfig(subscription = speechKey, region = serviceRegion)
