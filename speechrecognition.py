@@ -195,28 +195,6 @@ def detectIntent(userInput, embedding, langs, threshold=0.6, labels=None):
     else:
         return False, None, None
 
-wakeWords = {
-    "en": [
-            "siri", 
-            "hey siri"
-        ],
-    "sk": [
-            "alexa",
-            "hey alexa"
-        ] 
-    }
-
-allWakeWords = []
-langWakeWords = []
-
-for lang, phrases in wakeWords.items():
-    for phrase in phrases:
-        allWakeWords.append(phrase)
-        langWakeWords.append(lang)
-        
-wakingEmbeddings = model.encode(allWakeWords, convert_to_tensor=True)
-
-
 def extractForecastDays(text, lang="en"):
     number_match = re.search(r"\b(\d+)\s*(day|days|dni)?", text)
     if number_match:
@@ -249,6 +227,27 @@ def extractForecastDays(text, lang="en"):
             return 7
 
     return 3
+
+wakeWords = {
+    "en": [
+            "siri", 
+            "hey siri"
+        ],
+    "sk": [
+            "alexa",
+            "hey alexa"
+        ] 
+    }
+
+allWakeWords = []
+langWakeWords = []
+
+for lang, phrases in wakeWords.items():
+    for phrase in phrases:
+        allWakeWords.append(phrase)
+        langWakeWords.append(lang)
+        
+wakingEmbeddings = model.encode(allWakeWords, convert_to_tensor=True)
 
 def awakening(userInput, embedding, langs):
     if not userInput:
