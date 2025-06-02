@@ -14,16 +14,24 @@ http = urllib3.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where())
 
 def getLatLng(address):
     try:
-        result = http.request('GET', f'https://maps.googleapis.com/maps/api/geocode/json?key={googleMapsKey}&address={address}')
-    except requests.exceptions.RequestException as e: 
-        print(f"Error fetching data: {e}")
-        return None
-    parsedResult = result.json()
-    lat = parsedResult["results"][0]["geometry"]["location"]["lat"]
-    lng = parsedResult["results"][0]["geometry"]["location"]["lng"]
-    location = f"{lat},{lng}"
+        result = http.request(
+            'GET',
+            f'https://maps.googleapis.com/maps/api/geocode/json?key={googleMapsKey}&address={address}'
+        )
+        parsedResult = json.loads(result.data.decode('utf-8'))
 
-    return location
+        if not parsedResult.get("results"):
+            print(f"[ERROR] Geocoding returned no results for: {address}")
+            return None
+
+        lat = parsedResult["results"][0]["geometry"]["location"]["lat"]
+        lng = parsedResult["results"][0]["geometry"]["location"]["lng"]
+        return f"{lat},{lng}"
+
+    except Exception as e:
+        print(f"[ERROR] Failed to get lat/lng for '{address}': {e}")
+        return None
+
 
 def getTimeZone(address):
     location = getLatLng(address)
@@ -37,26 +45,44 @@ def getTimeZone(address):
 
     return timeZone
 
+from geopy.geocoders import Nominatim
+from timezonefinder import TimezoneFinder
+from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 def getTimeDate(address):
-    timeZone = getTimeZone(address)
     try:
-        result = http.request('GET', f'https://timeapi.io/api/time/current/zone?timeZone={timeZone}')
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching data: {e}")
+        geolocator = Nominatim(user_agent="fast_time_locator")
+        location = geolocator.geocode(address, timeout=10)
+        if location is None:
+            print("Address not found.")
+            return None
+
+        tf = TimezoneFinder()
+        timezone_str = tf.timezone_at(lat=location.latitude, lng=location.longitude)
+        if timezone_str is None:
+            print("Could not determine timezone.")
+            return None
+
+        try:
+            now = datetime.now(ZoneInfo(timezone_str))
+        except ZoneInfoNotFoundError:
+            print(f"Invalid timezone: {timezone_str}")
+            return None
+
+        return {
+            "year": now.year,
+            "month": now.month,
+            "day": now.day,
+            "hour": now.hour,
+            "minute": now.minute,
+            "seconds": now.second,
+            "dayOfWeek": now.strftime('%A')
+        }
+
+    except Exception as e:
+        print(f"Error: {e}")
         return None
-
-    parsedResult = result.json()
-    datetimeInfo = {
-        "year": parsedResult["year"],
-        "month": parsedResult["month"],
-        "day": parsedResult["day"],
-        "hour": parsedResult["hour"],
-        "minute": parsedResult["minute"],
-        "seconds": parsedResult["seconds"],
-        "dayOfWeek": parsedResult["dayOfWeek"]
-    }
-
-    return datetimeInfo
 
 def getCurrentWeather(address):
     location = getLatLng(address)
@@ -76,7 +102,7 @@ def getCurrentWeather(address):
             "condition": current["condition"]["text"],
             "wind": current["wind_kph"],
             "humidity": current["humidity"],
-        }
+        }  
         return weatherInfo
     except KeyError as e:
         print(f"Missing key in weather data: {e}")
