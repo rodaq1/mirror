@@ -18,12 +18,19 @@ def speechRecognition():
         except sr.WaitTimeoutError:
             print("niktoo nic nehovori lol")
     try:
-        text = recognizer.recognize_google(audio, language="sk-SK")
-        text = text.strip()
-        print(f"text: {text}")
-        return text
+        if audio:
+            text = recognizer.recognize_google(audio, language="sk-SK")
+            text = text.strip()
+            print(f"text: {text}")
+            return text
+        else: 
+            print("No audio detected.")
+            return "Nerozumiem"
     except sr.UnknownValueError:
         print("Could not understand audio.")
+    except sr.RequestError as e:
+        print(f"Could not request results from Google Speech Recognition service; {e}")
+        return None
 
 
 model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
@@ -443,6 +450,10 @@ def extract_location_sk(text):
 from googletrans import Translator
 
 translator = Translator()
+from googletrans import Translator
+
+translator = Translator()
+
 def extract_location(text, lang):
     if lang == "en":
         location = extract_location_en(text)  
@@ -457,6 +468,7 @@ def extract_location(text, lang):
         return None
 
     return None
+
 
 
 import time
